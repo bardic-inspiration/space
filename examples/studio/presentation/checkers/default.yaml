@@ -1,0 +1,26 @@
+# A draughts board: dark squares, and a piece for each man. A king shows a K.
+format: 1
+presentation: { ruleset: checkers, title: Board }
+
+instruments:
+  board:
+    form: map
+    checker: "#8a6a4f"
+  piece:
+    form: token
+    of: piece
+    at: "self.pos"
+    label: "{king ? 'K'}"
+    color: { by: owner }
+
+colors:
+  owner: { red: "#b5483a", black: "#2b2f36" }
+
+outcome: winner
+
+sentences:
+  intent:
+    step: "{seat}: {params.piece} steps to {params.to}"
+    jump: "{seat}: {params.piece} jumps to {params.to}"
+  set:
+    piece.king: "{id} is crowned"

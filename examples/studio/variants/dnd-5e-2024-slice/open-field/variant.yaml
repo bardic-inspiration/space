@@ -1,0 +1,6 @@
+# The pack ambush on open ground: no boulders to hide behind, one patch of scrub.
+format: 1
+variant: { id: open-field, title: On open ground }
+ruleset: dnd-5e-2024-slice
+scenario: pack-ambush
+map: open-field

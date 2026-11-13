@@ -1,0 +1,56 @@
+# The hold 'em table: a plane with places, a stack and two hole cards at each
+# chair, the board and the pot in the middle.
+format: 1
+presentation: { ruleset: holdem, title: Felt }
+
+instruments:
+  table:
+    form: map
+    places: { board: { label: Board }, pot: { label: Pot } }
+  stack:
+    form: chips
+    of: player
+    count: "self.chips"
+    unit: 50
+    at: { place: "chair{chair}" }
+    color: { by: seat }
+    dim: "self.folded"
+  hole:
+    form: cards
+    of: player
+    cards: "self.hole"
+    at: { place: "chair{chair}", offset: [0, 0.95] }
+    face: { rank: "card / 4 + 2", suit: "card % 4" }
+    dim: "self.folded"
+  community:
+    form: cards
+    cards: "game.board"
+    at: { place: board }
+    face: { rank: "card / 4 + 2", suit: "card % 4" }
+  pot:
+    form: chips
+    count: "all.player.map(p, p.committed).sum()"
+    unit: 50
+    at: { place: pot }
+
+outcome: winner
+
+sections:
+  - { on: { global: hand }, title: "Hand {value}" }
+  - { on: { global: street }, title: "{value}" }
+
+sentences:
+  intent:
+    fold: "{seat} folds"
+    check: "{seat} checks"
+    call: "{seat} calls"
+    raise: "{seat} raises to {params.to}"
+  signal:
+    pot.win: "{args.player.seat} wins {args.amount}"
+  set:
+    player.hole: "{id.seat} is dealt {value}"
+    player.chips: "{id.seat} stack {was} → {value}"
+  global:
+    board: "board: {value}"
+    street: "street: {value}"
+    hand: "hand {value}"

@@ -1,0 +1,64 @@
+# How the 5e slice looks and reads. None of this reaches a run: it changes
+# no match, no hash and no batch.
+format: 1
+presentation: { ruleset: dnd-5e-2024-slice, title: Tabletop }
+
+instruments:
+  ground:
+    form: map
+    layers:
+      terrain:
+        values:
+          difficult: { color: "#b9a46a", pattern: hatch }
+          rock: { color: "#5c5c5c", raise: 0.6 }
+  creature:
+    form: token
+    of: creature
+    at: "self.pos"
+    label: "{name}"
+    color: { by: side }
+    dim: "self.defeated"
+
+colors:
+  side: { monsters: "#b5483a", adventurers: "#3a6fb5", red: "#b5483a", blue: "#3a6fb5" }
+
+outcome: winner
+
+sections:
+  - { on: { global: round }, title: "Round {value}" }
+  - { on: { signal: turn.start }, title: "{args.actor.name}'s turn" }
+
+sentences:
+  intent:
+    attack: { text: "{params.actor} → {params.weapon.name} → {params.target}", then: [attack.hit, attack.miss] }
+    opportunityAttack: { text: "{params.actor} → opportunity, {params.weapon.name} → {params.target}", then: [attack.hit, attack.miss] }
+    move: "{params.actor} moves to {params.to}"
+    dash: "{params.actor} dashes"
+    disengage: "{params.actor} disengages"
+    endTurn: "{params.actor} ends the turn"
+    holdReaction: "{params.actor} holds its reaction"
+    cast: { text: "{params.actor} casts {params.spell.name} at {params.target}", then: [spell.countered] }
+    castAt: { text: "{params.actor} casts {params.spell.name} at {params.at}", then: [spell.countered] }
+    castGround: { text: "{params.actor} casts {params.spell.name} on {params.at}", then: [spell.countered] }
+    castStep: { text: "{params.actor} casts {params.spell.name} to {params.to}", then: [spell.countered] }
+    castWard: "{params.actor} casts {params.spell.name} against a {params.total}"
+    counterspell: "{params.actor} counters with {params.spell.name}"
+  signal:
+    turn.start: "{args.actor}'s turn starts"
+    turn.end: "{args.actor}'s turn ends"
+    attack.hit: "hit{args.critical ? ', critical'}"
+    attack.miss: "miss"
+    hp.lose: "{args.target} loses {args.amount} hp"
+    hp.gain: "{args.target} gains {args.amount} hp"
+    hp.empty: "{args.target} drops"
+    save.rolled: "{args.creature} {args.ability} save, DC {args.dc}{args.saved ? ': saved'}"
+    spell.cast: "{args.casting.caster} is casting {args.casting.spell.name}"
+    spell.countered: "countered"
+  set:
+    creature.hp: "{id} hp {was} → {value}"
+    creature.pos: "{id} to {value}"
+    creature.defeated: "{id} is defeated"
+  global:
+    round: "round {value}"
+  ground:
+    terrain: "{at} becomes {value}"

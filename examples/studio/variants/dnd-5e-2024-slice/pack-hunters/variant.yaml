@@ -1,0 +1,7 @@
+# The pack ambush with the beasts playing as plain hunters: they close and
+# bite, with no thought for the pack.
+format: 1
+variant: { id: pack-hunters, title: Pack as hunters, notes: "The pack seat plays `hunter` instead of `packHunter`." }
+ruleset: dnd-5e-2024-slice
+scenario: pack-ambush
+bind: { pack: hunter }

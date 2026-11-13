@@ -1,0 +1,5 @@
+format: 1
+metrics:
+  bots: { value: "all.bot.size()" }
+  built: { at: { signal: bot.built }, value: "true", fold: count }
+  wrecks: { at: { signal: bot.wrecked }, value: "bot.pos", fold: cells }

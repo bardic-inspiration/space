@@ -1,0 +1,35 @@
+# The same game as a ledger: cards as words, one color of chip, no dimming.
+# Picking this file in the view changes how a match looks and nothing else.
+format: 1
+presentation: { ruleset: holdem, title: Ledger }
+
+instruments:
+  table:
+    form: map
+    places: { board: { label: Community cards, color: "#3f9b6b" }, pot: { label: In the middle, color: "#3f9b6b" } }
+  stack:
+    form: chips
+    of: player
+    count: "self.chips"
+    unit: 100
+    at: { place: "chair{chair}" }
+    color: "#3f9b6b"
+  hole:
+    form: cards
+    of: player
+    cards: "self.hole"
+    at: { place: "chair{chair}", offset: [0, 0.95] }
+    face: { text: "string(card / 4 + 2) + ['c', 'd', 'h', 's'][card % 4]" }
+  community:
+    form: cards
+    cards: "game.board"
+    at: { place: board }
+    face: { text: "string(card / 4 + 2) + ['c', 'd', 'h', 's'][card % 4]" }
+  pot:
+    form: chips
+    count: "all.player.map(p, p.committed).sum()"
+    unit: 100
+    at: { place: pot }
+    color: "#7a5bb0"
+
+outcome: result

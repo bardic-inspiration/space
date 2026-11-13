@@ -1,0 +1,5 @@
+format: 1
+metrics:
+  hands: { value: "game.hand" }
+  biggestPot: { at: { signal: pot.win }, value: "amount", fold: max }
+  potsWon: { at: { signal: pot.win }, value: "amount", fold: count }

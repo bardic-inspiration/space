@@ -1,0 +1,27 @@
+# An overlay on the default set: one more behavior, and nothing changed in the others.
+format: 2
+behaviorSet: { id: brawl, title: Brawling mages }
+ruleset: { id: dnd-5e-2024-slice, version: 0.4.0 }
+
+behaviors:
+  brawler:
+    doc: Closes with the enemy and stabs. Wards off any hit, and counters any spell.
+    scores:
+      attack: 500
+      opportunityAttack: 500
+      standUp: 150
+      move: >-
+        cel.bind(foes, all.creature.filter(c, c.side != actor.side && !c.defeated),
+          foes.map(c, distance(actor.pos, c.pos)).min() <= 5
+            ? -1
+            : (foes.map(c, distance(actor.pos, c.pos)).min() - foes.map(c, distance(to, c.pos)).min()) * 2)
+      dash: "actor.movement == 0 && !all.creature.exists(c, c.side != actor.side && !c.defeated && distance(actor.pos, c.pos) <= 5) ? 30 : -1"
+      # No spells on its own turn: the slot is kept for a counter.
+      cast: -1
+      castAt: -1
+      castGround: -1
+      castStep: -1
+      castWard: 300
+      counterspell: 400
+      endTurn: 0
+      holdReaction: 0

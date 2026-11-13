@@ -1,0 +1,9 @@
+# What a batch of the 5e slice measures, beside core's own record.
+format: 1
+metrics:
+  rounds: { value: "game.round" }
+  bloodied: { value: "all.creature.filter(c, c.hp * 2 <= c.hpMax).size()" }
+  standing: { value: "all.creature.filter(c, !c.defeated).size()" }
+  bigHits: { at: { signal: hp.lose }, value: "amount >= target.hpMax / 2", fold: count }
+  damage: { at: { signal: hp.lose }, value: "amount", fold: sum }
+  deaths: { at: { signal: hp.lose }, when: "amount >= target.hp", value: "target.pos", fold: cells }
