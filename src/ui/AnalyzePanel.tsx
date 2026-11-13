@@ -187,7 +187,7 @@ function Compare({ batches, columns, outcome }: { batches: Batch[]; columns: Col
         </div>
       ))}
       <table className="grid">
-        <thead><tr><th>metric</th>{batches.map((batch) => <th key={batch.path}>{nameOf(batch)}: mean</th>)}{batches.map((batch) => <th key={batch.path}>median</th>)}</tr></thead>
+        <thead><tr><th>metric</th>{batches.map((batch) => <th key={batch.path}>{nameOf(batch)}: mean</th>)}{batches.map((batch) => <th key={batch.path}>{nameOf(batch)}: median</th>)}</tr></thead>
         <tbody>
           {held.map((column) => {
             const sums = batches.map((batch) => summarize(numbersOf(column, batch.records)));

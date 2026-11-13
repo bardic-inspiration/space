@@ -613,6 +613,8 @@ export class Studio {
     try {
       const { records } = await this.batch.done;
       const written = writeBatch(project, doc, [...have, ...records], new Date().toISOString());
+      // Running again replaces the variant's stale batches: the ones under a hash it no longer resolves to.
+      for (const old of this.state.batches) if (old.doc.variant.id === variant && old.path !== written.path) project.remove(old.path);
       this.hashes.set(variant, run.hash);
       this.set({ progress: null, batches: listBatches(project, ruleset), revision: project.revision, selectedBatches: [...new Set([...this.state.selectedBatches, written.path])] });
       return written;

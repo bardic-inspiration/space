@@ -60,7 +60,7 @@ export function HistogramChart({ histogram, summary, top, color = PALETTE[0], wi
       )}
       <text x={0} y={height + 16} className="muted">{fmt(histogram.low)}</text>
       <text x={width} y={height + 16} textAnchor="end" className="muted">{fmt(histogram.high)}</text>
-      <text x={0} y={height + 28}>mean {fmt(summary.mean)} · median {fmt(summary.median)} · p10 {fmt(summary.p10)} · p90 {fmt(summary.p90)}</text>
+      <text x={0} y={height + 28}>mean {fmt(summary.mean)} · median {fmt(summary.median)} · p10–p90 {fmt(summary.p10)}–{fmt(summary.p90)}</text>
     </svg>
   );
 }

@@ -167,7 +167,7 @@ function MapTab() {
   }, [file?.path, file?.text, registry, revision]);
 
   const values: Value[] = !layer || !registry ? [] : layer.type.k === 'enum' ? registry.enums.get(layer.type.name)! : layer.type.k === 'bool' ? [false, true] : [];
-  useEffect(() => { if (layer) setValue(values.find((held) => held !== layer.default) ?? (layer.default as Value)); }, [layer?.name, registry]);
+  useEffect(() => { if (layer) setValue(values.find((held) => held !== layer.default) ?? (layer.default as Value)); }, [layer?.name, registry?.id]);
 
   const checked = model.current && registry ? checkModel(model.current, registry) : null;
   function preview() {
