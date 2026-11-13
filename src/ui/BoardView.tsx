@@ -1,7 +1,7 @@
 // A board in the page. The main board follows the match in focus; a second
 // one stands beside it for a fork's parent, or a second batch's heatmap.
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Board, type Heat } from '../board/board.ts';
 import type { SpaceMap, State } from '../core.ts';
 import type { Presentation } from '../present/presentation.ts';
@@ -52,14 +52,15 @@ export function BoardView({ name, scene, heat, interactive, caption }: { name: s
   }, [board, interactive]);
 
   const presentation = scene?.presentation ?? null;
-  useEffect(() => board?.setPresentation(presentation), [board, presentation]);
+  useLayoutEffect(() => board?.setPresentation(presentation), [board, presentation]);
   useEffect(() => board?.refreshTheme(), [board, theme]);
   useEffect(() => board?.setTilt(tilt), [board, tilt]);
   useEffect(() => {
     if (!board || !presentation) return;
     for (const layer of presentation.registry.cellLayers.keys()) board.setLayerHidden(layer, hidden.includes(layer));
   }, [board, presentation, hidden]);
-  useEffect(() => {
+  // Before the browser paints, so the board and the panels move in the same frame.
+  useLayoutEffect(() => {
     if (board && scene) board.show(scene.state, { animate: scene.animate, map: scene.map });
   }, [board, scene?.state, scene?.map, presentation, theme]);
   useEffect(() => board?.setOverlay(interactive ? overlay : null), [board, overlay, interactive, scene?.state]);

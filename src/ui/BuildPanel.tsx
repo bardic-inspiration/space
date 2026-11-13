@@ -257,7 +257,7 @@ function MapTab() {
     preview();
     save();
   };
-  const saved = file!.path;
+  const saved = studio.shadowPath(rel);
   return (
     <div>
       <div className="row"><b>{held.title ?? held.id}</b><span className="hint">{file!.path} · {held.width} by {held.height}</span></div>
@@ -391,7 +391,7 @@ function EntitiesTab() {
   return (
     <div>
       <p className="hint">{file.path} · Drag a token on the board to move it. Hold Alt and drop it on a point place to stand it there by name.</p>
-      <div className="row"><button disabled={!studio.canUndo(file.path)} onClick={() => studio.undo(file.path)}>Undo</button><button disabled={!studio.canRedo(file.path)} onClick={() => studio.undo(file.path, true)}>Redo</button></div>
+      <div className="row"><button disabled={!studio.canUndo(studio.shadowPath(rel))} onClick={() => studio.undo(studio.shadowPath(rel))}>Undo</button><button disabled={!studio.canRedo(studio.shadowPath(rel))} onClick={() => studio.undo(studio.shadowPath(rel), true)}>Redo</button></div>
       {refused.length > 0 && <ul className="plain" data-testid="entity-issues">{refused.map((issue, index) => <li key={index} className="stale">{issue.path}: {issue.message}</li>)}</ul>}
       {selected && (
         <>

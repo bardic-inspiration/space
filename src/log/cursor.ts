@@ -12,6 +12,8 @@ export class StateCache {
   private readonly keyframes: State[] = [emptyState()];
   /** The last state asked for: stepping forward from it is one `apply`. */
   private last = { at: 0, state: this.keyframes[0] };
+  /** The few states asked for most recently, so a look one entry back does not start again from a keyframe. */
+  private readonly recent = new Map<number, State>();
 
   constructor(log: readonly GameEvent[]) {
     this.log = log;
@@ -20,6 +22,8 @@ export class StateCache {
   /** The state after the first `count` entries: `fold(log.slice(0, count))`. */
   at(count: number): State {
     const target = Math.max(0, Math.min(this.log.length, Math.floor(count)));
+    const held = this.recent.get(target);
+    if (held) return held;
     while ((this.keyframes.length - 1) * KEYFRAME_EVERY + KEYFRAME_EVERY <= target) {
       const from = (this.keyframes.length - 1) * KEYFRAME_EVERY;
       let state = this.keyframes[this.keyframes.length - 1];
@@ -32,6 +36,8 @@ export class StateCache {
     if (this.last.at <= target && this.last.at >= from) ({ at: from, state } = this.last);
     for (let i = from; i < target; i++) state = apply(state, this.log[i]);
     this.last = { at: target, state };
+    this.recent.set(target, state);
+    if (this.recent.size > 48) this.recent.delete(this.recent.keys().next().value!);
     return state;
   }
 }

@@ -33,6 +33,8 @@ export interface Watched {
   log: GameEvent[];
   record: MatchRecord;
   cache: StateCache;
+  /** A second cache for the log's rows, which are read in their own order and would otherwise pull the cursor's about. */
+  rows: StateCache;
   tree: LogTree;
   /** The `seq` of every decision. */
   decisions: number[];
@@ -299,7 +301,7 @@ export class Studio {
     }));
     return {
       hash: from.hash, seed: from.seed, binds: from.binds, fork: from.fork, log, record, cache, compiled, presentation,
-      tree: buildTree(log, 1 + compiled.scenario.setup.length, openers), decisions: decisionsOf(log), sentences: new Map(),
+      rows: new StateCache(log), tree: buildTree(log, 1 + compiled.scenario.setup.length, openers), decisions: decisionsOf(log), sentences: new Map(),
     };
   }
 
@@ -308,7 +310,7 @@ export class Studio {
     let nodes = watched.sentences.get(entry.seq);
     if (!nodes) {
       try {
-        nodes = sentenceOf(entry, { registry: watched.compiled.registry, presentation: watched.presentation, tree: watched.tree, stateAt: (count) => watched.cache.at(count) });
+        nodes = sentenceOf(entry, { registry: watched.compiled.registry, presentation: watched.presentation, tree: watched.tree, stateAt: (count) => watched.rows.at(count) });
       } catch (error) {
         nodes = [`${entry.t} (${(error as Error).message})`];
       }
@@ -696,6 +698,11 @@ export class Studio {
     project.writeVariant(this.state.ruleset, variant, change(structuredClone(project.variant(this.state.ruleset, variant)!.doc)));
     this.set({ revision: project.revision });
     void this.recompile();
+  }
+
+  /** Where a document of the variant in hand is written: its undo history is kept under this path, whether or not the file exists yet. */
+  shadowPath(rel: string): string {
+    return `${this.state.project!.variantDir(this.state.ruleset, this.state.variant)}/files/${rel}`;
   }
 
   canUndo(path: string): boolean {
