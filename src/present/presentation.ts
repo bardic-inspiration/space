@@ -2,7 +2,7 @@
 // against the ruleset; a part that is refused falls back to its default, so
 // a ruleset with no file at all is fully usable (S10).
 
-import type { Registry, Scenario, State, Value } from '../core.ts';
+import type { Registry, Scenario, SpaceMap, State, Value } from '../core.ts';
 import { FORMS, PALETTE, isContainer, type Bound, type ContainerForm, type Form } from '../forms/index.ts';
 import { parseTemplate, type Part } from './template.ts';
 import type { Frame, InlineNode, InstrumentDoc, Issue, ItemBase, PresentationDoc, SentenceGroup, Where } from './types.ts';
@@ -36,9 +36,10 @@ export interface Presentation {
   sentences: Record<SentenceGroup, Map<string, Sentence>>;
   /** Refusals, by path into the file. Each refused part fell back to its default. */
   issues: Issue[];
-  frame(state: State): Frame;
+  /** `map` stands in for the scenario's own: a map being edited, drawn before it is saved or sound. */
+  frame(state: State, map?: SpaceMap): Frame;
   /** Every instrument's items for one state: the container first. */
-  layout(state: State): { instrument: Instrument; items: ItemBase[] }[];
+  layout(state: State, map?: SpaceMap): { instrument: Instrument; items: ItemBase[] }[];
   /** An entity as its instrument draws it inline: a token as a chip in its color. */
   inlineEntity(id: string, state: State): InlineNode;
   /** A value written to a field or global that an instrument is bound to, as that instrument draws it. */
@@ -147,8 +148,8 @@ export function bindPresentation(doc: PresentationDoc | undefined, compiled: { r
     }
   }
 
-  const frame = (state: State): Frame => {
-    const map = scenario.mapAt(state);
+  const frame = (state: State, given?: SpaceMap): Frame => {
+    const map = given ?? scenario.mapAt(state);
     return {
       registry, scenario, state, map, colorBy,
       locate: (where: Where) => (container && map ? container.form.locate(container.bound, map, where) : null),
@@ -162,8 +163,8 @@ export function bindPresentation(doc: PresentationDoc | undefined, compiled: { r
 
   return {
     id, registry, scenario, container, components, outcome: doc?.outcome, sections, sentences, issues, frame,
-    layout(state) {
-      const at = frame(state);
+    layout(state, map) {
+      const at = frame(state, map);
       return (container ? [container, ...components] : components).map((instrument) => ({ instrument, items: instrument.form.layout(instrument.bound, at) }));
     },
     inlineEntity(entity, state) {

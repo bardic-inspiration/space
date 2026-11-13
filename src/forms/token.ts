@@ -91,8 +91,8 @@ function mount(bound: BoundToken, kit: BoardKit): Drawn<TokenItem> {
       icon.position.y = 0.125;
       group.add(icon);
     }
-    const label = kit.label(item.label, { size: 0.24, color: item.dim ? theme.muted : theme.ink, plate: theme.background });
-    label.position.set(0, 0.2, RADIUS + 0.2);
+    const label = kit.label(item.label, { size: 0.3, color: item.dim ? theme.muted : theme.ink, plate: theme.background });
+    label.position.set(0, 0.2, RADIUS + 0.24);
     group.add(label);
     // A dimmed token lies flat and gray.
     group.scale.set(item.scale, item.dim ? item.scale * 0.3 : item.scale, item.scale);
