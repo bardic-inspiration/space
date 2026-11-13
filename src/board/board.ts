@@ -82,6 +82,8 @@ export class Board {
   private dirty = true;
   private disposed = false;
   private fitted = '';
+  /** Set once the view has been panned or zoomed by hand: a resize then leaves it alone. */
+  private manual = false;
   private readonly observer: ResizeObserver;
   private drag: { x: number; y: number; pan: boolean; moved: boolean } | null = null;
   /** Frames drawn, for measuring. */
@@ -227,6 +229,7 @@ export class Board {
     const width = map?.width ?? 8;
     const height = map?.height ?? 8;
     const aspect = this.aspect();
+    this.manual = false;
     this.center = { x: width / 2, y: height / 2 };
     this.span = Math.max(height + 1.5, (width + 1.5) / aspect);
     this.invalidate();
@@ -366,6 +369,7 @@ export class Board {
         return;
       }
       if (!this.drag.moved) return;
+      this.manual = true;
       const perPixel = this.span / Math.max(1, this.element.clientHeight);
       this.center = { x: this.center.x - event.movementX * perPixel, y: this.center.y - event.movementY * perPixel };
       this.invalidate();
@@ -383,6 +387,7 @@ export class Board {
     canvas.addEventListener('wheel', (event) => {
       event.preventDefault();
       const before = this.ground(event.clientX, event.clientY);
+      this.manual = true;
       this.span = Math.min(400, Math.max(2, this.span * Math.exp(event.deltaY * 0.0012)));
       // Zoom about the pointer: the ground under it stays under it.
       const after = this.ground(event.clientX, event.clientY);
@@ -477,6 +482,7 @@ export class Board {
     const width = Math.max(1, this.element.clientWidth);
     const height = Math.max(1, this.element.clientHeight);
     this.renderer.setSize(width, height, false);
+    if (!this.manual) this.fit();
     this.invalidate();
   }
 

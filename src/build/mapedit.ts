@@ -3,7 +3,8 @@
 // and it is written back as a picture, `rows` and `legend`, keeping the
 // file's own symbols (S13).
 
-import { Scalar, isMap, parseDocument, type YAMLMap } from 'yaml';
+import { parse } from 'yaml';
+import { flow, nodeAt, replaceAt, setTop } from '../project/yamledit.ts';
 import type { MapDoc, Registry, SpaceMap, Value } from '../core.ts';
 import { buildMap, fitsRuleset } from 'rpg-core/src/runtime/map.ts';
 import type { Mark } from '../board/board.ts';
@@ -153,32 +154,22 @@ export function checkModel(model: MapModel, registry: Registry): Checked {
 // ── Writing ───────────────────────────────────────────────────────────────
 
 const SYMBOLS = '#"~^*+=:;,%&@$oOxX0123456789abcdefghijklmnpqrstuvwyzABCDEFGHIJKLMNPQRSTUVWYZ';
-
-const quoted = (text: string): Scalar => {
-  const scalar = new Scalar(text);
-  scalar.type = Scalar.QUOTE_SINGLE;
-  return scalar;
-};
+const quote = (text: string) => `'${text.replace(/'/g, "''")}'`;
 
 /**
  * A map document's text for a model. A grid map is written as a picture,
  * keeping the symbols the file already has and adding new ones as needed; a
  * map with more distinct cells than there are symbols is written with
- * `cells`. A plane without a grid is a size and places. Comments are kept.
+ * `cells`. A plane without a grid is a size and places. Only the keys that
+ * changed are rewritten, so the rest of the file, comments included, stands.
  */
 export function writeMap(text: string | undefined, model: MapModel, registry: Registry): string {
-  const doc = parseDocument(text ?? '{}');
-  if (!isMap(doc.contents)) doc.contents = doc.createNode({}) as never;
-  const meta = doc.createNode({ id: model.id, ...(model.title ? { title: model.title } : {}) }) as YAMLMap;
-  meta.flow = true;
-  const rules = doc.createNode(model.ruleset) as YAMLMap;
-  rules.flow = true;
-  if (!doc.has('format')) doc.set('format', 2);
-  if (!same(doc.get('map') && (doc.toJS() as MapDoc).map, { id: model.id, ...(model.title ? { title: model.title } : {}) })) doc.set('map', meta);
-  if (!doc.has('ruleset')) doc.set('ruleset', rules);
+  let out = text ?? `format: 2\nmap: ${flow({ id: model.id, title: model.title })}\nruleset: ${flow(model.ruleset)}\n`;
+  const was = (parse(out) ?? {}) as MapDoc;
+  const meta = { id: model.id, ...(model.title ? { title: model.title } : {}) };
+  if (!same(was.map, meta)) out = setTop(out, 'map', `map: ${flow(meta)}`);
 
   const gridded = registry.space.grid === 'square';
-  const was = doc.toJS() as MapDoc;
   const picture = (): { legend: Record<string, Record<string, Value>>; rows: string[] } | null => {
     const legend = new Map<string, string>();
     const taken = new Set<string>();
@@ -211,44 +202,42 @@ export function writeMap(text: string | undefined, model: MapModel, registry: Re
       }
       rows.push(row);
     }
-    // The legend keeps the file's order, then the new symbols; ones no cell uses any more are dropped.
-    const order = [...Object.keys(was.legend ?? {}).filter((symbol) => [...used.values()].includes(symbol)), ...[...used.values()].filter((symbol) => !(symbol in (was.legend ?? {})))];
+    // The legend keeps what the file has, in its order, and gains the new symbols after.
     const bySymbol = new Map([...used].map(([key, symbol]) => [symbol, JSON.parse(key) as Record<string, Value>]));
-    return { legend: Object.fromEntries(order.map((symbol) => [symbol, bySymbol.get(symbol)!])), rows };
+    const kept = Object.entries(was.legend ?? {}).map(([symbol, values]): [string, Record<string, Value>] => [symbol, values as Record<string, Value>]);
+    return { legend: Object.fromEntries([...kept, ...[...bySymbol].filter(([symbol]) => !(symbol in (was.legend ?? {})))]), rows };
   };
 
   const drawn = gridded ? picture() : null;
   if (drawn) {
     if (!same(was.legend, drawn.legend)) {
-      const legend = doc.createNode({}) as YAMLMap;
-      for (const [symbol, values] of Object.entries(drawn.legend)) {
-        const entry = doc.createNode(values) as YAMLMap;
-        entry.flow = true;
-        legend.add({ key: quoted(symbol), value: entry });
-      }
-      doc.set('legend', legend);
+      const entries = Object.entries(drawn.legend);
+      const added = entries.slice(Object.keys(was.legend ?? {}).length);
+      const node = nodeAt(out, ['legend']);
+      // New symbols go under the ones the file has, whose lines and comments are left as they are.
+      if (was.legend && node?.range && !(node as { flow?: boolean }).flow) {
+        const at = out.indexOf('\n', node.range[1] - 1) + 1 || out.length;
+        out = `${out.slice(0, at)}${at > 0 && out[at - 1] !== '\n' ? '\n' : ''}${added.map(([symbol, values]) => `  ${quote(symbol)}: ${flow(values)}\n`).join('')}${out.slice(at)}`;
+      } else out = setTop(out, 'legend', `legend:\n${entries.map(([symbol, values]) => `  ${quote(symbol)}: ${flow(values)}`).join('\n')}`);
     }
-    if (!same(was.rows, drawn.rows)) {
-      const rows = doc.createNode([]) as unknown as { items: Scalar[] };
-      rows.items = drawn.rows.map(quoted);
-      doc.set('rows', rows);
-    }
-    for (const key of ['width', 'height', 'cells']) doc.delete(key);
+    if (!same(was.rows, drawn.rows)) out = setTop(out, 'rows', `rows:\n${drawn.rows.map((row) => `  - ${quote(row)}`).join('\n')}`);
+    for (const key of ['width', 'height', 'cells']) out = setTop(out, key, null);
   } else {
-    for (const key of ['legend', 'rows']) doc.delete(key);
-    doc.set('width', model.width);
-    doc.set('height', model.height);
-    if (gridded) {
-      const cells = doc.createNode([...model.cells].map(([key, values]) => ({ at: key.split(',').map(Number), ...values }))) as unknown as { items: YAMLMap[] };
-      for (const cell of cells.items) cell.flow = true;
-      doc.set('cells', cells);
-    } else doc.delete('cells');
+    for (const key of ['legend', 'rows']) out = setTop(out, key, null);
+    if (was.width !== model.width) out = setTop(out, 'width', `width: ${model.width}`);
+    if (was.height !== model.height) out = setTop(out, 'height', `height: ${model.height}`);
+    const cells = [...model.cells].map(([key, values]) => ({ at: key.split(',').map(Number), ...values }));
+    if (!gridded || cells.length === 0) out = setTop(out, 'cells', null);
+    else if (!same(was.cells, cells)) out = setTop(out, 'cells', `cells:\n${cells.map((cell) => `  - ${flow(cell)}`).join('\n')}`);
   }
-  if (Object.keys(model.places).length === 0) doc.delete('places');
+  if (Object.keys(model.places).length === 0) out = setTop(out, 'places', null);
   else if (!same(was.places, model.places)) {
-    const places = doc.createNode(model.places) as YAMLMap<Scalar, YAMLMap>;
-    for (const item of places.items) if (item.value) item.value.flow = true;
-    doc.set('places', places);
+    // A place that only moved or changed size is rewritten where it stands; otherwise the list is written afresh.
+    const before = Object.keys(was.places ?? {});
+    const after = Object.keys(model.places);
+    if (was.places && same(before, after)) {
+      for (const name of after) if (!same(was.places[name], model.places[name])) out = replaceAt(out, ['places', name], flow(model.places[name])) ?? out;
+    } else out = setTop(out, 'places', `places:\n${Object.entries(model.places).map(([name, place]) => `  ${name}: ${flow(place)}`).join('\n')}`);
   }
-  return doc.toString({ lineWidth: 0, flowCollectionPadding: true });
+  return out;
 }

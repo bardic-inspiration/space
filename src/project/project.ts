@@ -3,7 +3,7 @@
 // opens; reads are then synchronous, and a write goes to memory and to the
 // folder. Nothing outside `studio/` is ever written (S6).
 
-import { LineCounter, isMap, isScalar, isSeq, parse, parseDocument, type Document, type Node } from 'yaml';
+import { LineCounter, isMap, isScalar, isSeq, parse, parseDocument, stringify, type Document, type Node } from 'yaml';
 import { CORE_COMMIT } from '../core.ts';
 import type { RunInput } from '../engine/input.ts';
 import type { Issue } from '../engine/protocol.ts';
@@ -89,7 +89,7 @@ export class Project {
     }));
     if (project.rulesets().length === 0) throw new Error('this folder has no rulesets/<id>/ruleset.yaml: it is not a project');
     const meta = project.doc<{ core?: string }>('studio/project.yaml');
-    if (meta?.core && meta.core !== CORE_COMMIT) project.staleCore = meta.core;
+    if (meta?.core !== undefined && String(meta.core) !== CORE_COMMIT) project.staleCore = String(meta.core);
     return project;
   }
 
@@ -421,8 +421,10 @@ export function hasNode(text: string, segments: string[]): boolean {
 
 /** A document's text with its top-level keys set to `values`; keys absent from `values` are dropped. Comments are kept. */
 export function rewrite(text: string | undefined, values: Record<string, unknown>): string {
-  const doc = parseDocument(text ?? '{}');
-  if (!isMap(doc.contents)) doc.contents = doc.createNode({}) as never;
+  const clean = Object.fromEntries(Object.entries(values).filter(([, value]) => value !== undefined));
+  if (text === undefined) return stringify(clean, { lineWidth: 110 });
+  const doc = parseDocument(text);
+  if (!isMap(doc.contents)) return stringify(clean, { lineWidth: 110 });
   const map = doc.contents as unknown as { items: { key: unknown }[] };
   for (const item of [...map.items]) {
     const key = isScalar(item.key) ? String(item.key.value) : '';
