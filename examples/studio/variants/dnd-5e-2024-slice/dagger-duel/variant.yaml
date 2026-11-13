@@ -1,0 +1,9 @@
+# The mage duel fought hand to hand. Both mages close and stab, ward off a
+# hit with Shield, and counter the other's Shield: a Counterspell cast at a
+# Shield cast at an attack, nested in the log as the rules nest it.
+format: 1
+variant: { id: dagger-duel, title: Daggers drawn, notes: "Both seats play `brawler`, from the overlay set `brawl`." }
+ruleset: dnd-5e-2024-slice
+scenario: mage-duel
+behaviors: [default, brawl]
+bind: { ember: brawler, rime: brawler }
