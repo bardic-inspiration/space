@@ -4,7 +4,7 @@ Nov 12, 2026 · @Reif
 
 This is the build spec for the first version of the studio. The design it builds is in [Spatial Test Studio: Conceptual Design](Spatial%20Test%20Studio%20Conceptual%20Design.md); where the two differ, this document is wrong and should be fixed. Core is as of commit `63ab4e2` (core #5), and its contract for a host is `docs/host.md` there.
 
-Decisions this spec makes that the design left open are numbered S1 to S16 and listed in [Decisions](#decisions), so each can be overturned by number.
+Decisions this spec makes that the design left open are numbered S1 to S18 and listed in [Decisions](#decisions), so each can be overturned by number.
 
 ## 1. Scope
 
@@ -13,12 +13,14 @@ Decisions this spec makes that the design left open are numbered S1 to S16 and l
 In v1:
 
 - Any ruleset core compiles can be opened, played, scrubbed and batched, with or without a presentation file.
+- Four forms of instrument of play: map, token, chips, cards (section 7).
 - Square grids, and planes without a grid.
 - Variants of behaviors, maps, scenarios and rulesets. Batches, CEL metrics, comparison, heatmaps.
 - A map editor, entity placement, YAML editors, forks.
 
 Not in v1:
 
+- Instrument forms beyond those four: dice, tiles, pieces with facing.
 - Human seats and live play. A seat is filled by a behavior or plays at random.
 - Anything core lacks: hexes, height, footprints larger than a cell, path distance, play on a plane without a grid.
 - A view filtered to what one seat may know. The studio shows the whole state, as a referee sees it.
@@ -66,8 +68,9 @@ Source layout:
 | `src/engine/` | `RunInput` and its hash, the worker protocol, the session worker, the pool. |
 | `src/host/` | The geometry host. |
 | `src/present/` | Presentation files, their defaults, sentence templates. |
+| `src/forms/` | The instrument forms: one module per form, each drawing on the board and inline in the log. |
 | `src/log/` | The log tree and the cursor's state cache. |
-| `src/board/` | The three.js scene: ground, places, tokens, overlay, heatmaps, picking. |
+| `src/board/` | The three.js scene: laying out the instruments, the overlay, heatmaps, picking. |
 | `src/analyze/` | Metrics, statistics, charts. |
 | `src/build/` | The map editor and entity placement. |
 | `src/ui/` | Panels, the store, themes. |
@@ -188,27 +191,102 @@ Every request carries an id and can be cancelled; a newer `play` supersedes an o
 
 The page holds the log and a cursor: the number of entries applied, from 0 to `log.length`. The state at the cursor is `fold(log.slice(0, cursor))`, kept cheap by a keyframe state every 256 entries and `apply` from the nearest one. The map at the cursor is `scenario.mapAt(state)`; the board redraws the ground only when that object's identity changes.
 
-## 7. Presentation
+## 7. Presentation and instruments
 
 `studio/presentation/<ruleset>.yaml` says how a ruleset looks and reads. Every part is optional, and a ruleset with no file at all is fully usable: the studio fills each gap with the default given below (S10).
+
+### 7.1 Instruments of play
+
+An instrument of play is a thing the game is played with: a map, a token, a stack of chips, a hand of cards. Its rules are core's and its appearance is the studio's (S17). The presentation file joins the two: each entry under `instruments` binds something the ruleset declares to a **form** the studio draws, and gives it a look.
+
+```yaml
+format: 1
+presentation: { ruleset: holdem }
+
+instruments:
+  table:
+    form: map
+    places: { board: { label: Board }, pot: { label: Pot } }
+  stack:
+    form: chips
+    of: player
+    count: "self.chips"
+    at: { place: "chair{chair}" }
+    color: { by: seat }
+    dim: "self.folded"
+  hole:
+    form: cards
+    of: player
+    cards: "self.hole"
+    at: { place: "chair{chair}", offset: [0, 0.8] }
+    face: { rank: "card / 4 + 2", suit: "card % 4" }
+  community:
+    form: cards
+    cards: "game.board"
+    at: { place: board }
+    face: { rank: "card / 4 + 2", suit: "card % 4" }
+  pot:
+    form: chips
+    count: "all.player.map(p, p.committed).sum()"
+    at: { place: pot }
+```
 
 ```yaml
 format: 1
 presentation: { ruleset: dnd-5e-2024-slice }
 
-layers:
-  terrain:
-    values:
-      difficult: { color: "#b9a46a", pattern: hatch }
-      rock: { color: "#5c5c5c", raise: 0.6 }
-  cover: { ramp: ["#ffffff", "#274b6d"], domain: [0, 3] }
-
-tokens:
-  creature: { at: pos, label: "{name}", icon: paw, color: { by: side }, dim: defeated }
+instruments:
+  ground:
+    form: map
+    layers:
+      terrain:
+        values:
+          difficult: { color: "#b9a46a", pattern: hatch }
+          rock: { color: "#5c5c5c", raise: 0.6 }
+  creature:
+    form: token
+    of: creature
+    at: "self.pos"
+    label: "{name}"
+    icon: paw
+    color: { by: side }
+    dim: "self.defeated"
 
 colors:
   side: { monsters: "#b5483a", adventurers: "#3a6fb5" }
+```
 
+Common to every instrument but the map:
+
+- **`of`** names a kind: there is one instrument per live entity of it, and its expressions see that entity as `self`. Without `of` there is one instrument for the match, and its expressions see the global scope only.
+- **What it shows** (`count`, `cards`, a token's `at`) and **`dim`** are CEL, checked with `compileExpression` against the ruleset like any rule and evaluated on the state at the cursor. They read facts; an instrument has no rules of its own.
+- **`at`** says where it lies: a `cell` expression, or `{ place, offset }` with a place name built from the entity's stored fields. An instrument with no `at`, or whose place the map lacks, is listed in a tray beside the board.
+- **`color`** is a fixed color, or `{ by: field }` with the field's values colored under `colors`.
+
+The four forms of v1:
+
+| Form | Binds | Draws | Look |
+| --- | --- | --- | --- |
+| `map` | The ruleset's `space` and the map at the cursor. One per ruleset, with no `of` or `at`. | The plane, the grid when there is one, the cell layers, the places. | Per layer: a color, pattern and height per value of an enum, bool or string, or a `ramp` and `domain` for a number. Per place: a label and a color. |
+| `token` | An entity with a cell (`at`). | A round chip with an icon and a ring in its color. Several in one cell fan out inside it. | `label`, `icon`, `color`. |
+| `chips` | An `int` (`count`). | A stack whose height follows the count, with the number beside it. Zero draws an empty outline. | `color`, and `unit`, the chips one disc stands for. |
+| `cards` | A `list<int>` or `list<string>` (`cards`). | A row of card faces, in list order. | `face`: a `rank` and a `suit` expression over `card`, or `text`, an expression giving the words on the face. `back: true` draws them face down. |
+
+Defaults, when a ruleset has no presentation file or lists no instruments:
+
+- A `map` instrument for any ruleset with a space. A layer's default value draws nothing; other values take colors from a fixed categorical palette in declaration order; a number takes a ramp over the values present. A cell that blocks movement is raised.
+- A `token` for every kind with exactly one `cell` field, labelled with its `name` field or its id, colored by its `seat` field when it has one.
+- No chips and no cards: nothing in a ruleset says that a number is a stack or a list is a hand. Kinds with no instrument appear only in the inspector.
+
+**A form is a module** in `src/forms/` with one interface: check a binding against the registry, draw on the board from a state, draw inline in a log row, and answer a pick. The board and the log know forms only through it, so a fifth form is one new module and no change elsewhere. The four forms are the fixtures that prove the interface.
+
+**Hidden values are shown.** A field hidden from some seats, such as hole cards, is drawn as the referee sees it, with a mark that it is hidden (S14).
+
+**Icons** are a name from the studio's built-in set, or one or two characters of text.
+
+### 7.2 Sections and sentences
+
+```yaml
 outcome: winner
 
 sections:
@@ -228,24 +306,20 @@ sentences:
 
 | Part | Says | Default |
 | --- | --- | --- |
-| `layers` | A color, pattern and height per value of an enum, bool or string layer, or a color ramp for a number. | The layer's default value draws nothing. Other values take colors from a fixed categorical palette in declaration order; a number takes a ramp over the values present. A cell that blocks movement is raised. |
-| `tokens` | Per kind: where it stands (`at`), its label, icon, color, and a bool field that dims it. `at` is a `cell` field, or `{ place: "chair{chair}" }`, a place name built from the entity's fields. | A kind with exactly one `cell` field gets a token there, labelled with its `name` field or its id, colored by its `seat` field when it has one. Other kinds have no token and appear only in the inspector. |
-| `colors` | Colors for the values of a field that tokens color by. | The categorical palette, by first appearance in the scenario. |
+| `colors` | Colors for the values of a field that instruments color by. | The categorical palette, by first appearance in the scenario. |
 | `outcome` | The key of a match's outcome that batches are split by. | `winner` when outcomes have one, otherwise `result`. |
 | `sections` | What opens a section of the log, outermost first: a signal, or a write to a global. | None: decisions sit directly under the match. |
 | `sentences` | A template per intent, signal, `kind.field` set, created or destroyed kind, relation, and ground layer. | A generic sentence from the entry's own fields, e.g. *set worg.hp 12*. |
 
-**Templates.** `{path}` is replaced by a value read from the log entry: `seat`, `intent`, `params.*`, `args.*`, `id`, `field`, `key`, `value`, `values`, `at`, `layer`. `was` is the value a write replaced. A path may step from an entity into its stored fields (`{params.target.name}`), read from the state at that entry. An entity renders as a chip in its token's color, a cell as `(x, y)`. `{flag ? 'text'}` writes the text when the value is true. A template is not CEL and computes nothing (S11); what a sentence needs and the log lacks belongs in the rules as a signal argument.
+**Templates.** `{path}` is replaced by a value read from the log entry: `seat`, `intent`, `params.*`, `args.*`, `id`, `field`, `key`, `value`, `values`, `at`, `layer`. `was` is the value a write replaced. A path may step from an entity into its stored fields (`{params.target.name}`), read from the state at that entry. An entity renders inline as its instrument does (a token as a chip in its color), a value written to a `cards` binding as its faces, and a cell as `(x, y)`. `{flag ? 'text'}` writes the text when the value is true. A template is not CEL and computes nothing (S11); what a sentence needs and the log lacks belongs in the rules as a signal argument.
 
 **`then`** on an intent's sentence appends the sentence of the first descendant signal of each listed name, so a decision reads as its result: *worg → bite → scout: hit, 7 piercing*.
 
-**Icons** are a name from the studio's built-in set, or one or two characters of text.
-
-The presentation file is checked against the compiled ruleset: an unknown layer, kind, field, signal, intent or place is an error shown in its editor, and the studio falls back to the default for that part.
+The presentation file is checked against the compiled ruleset: an unknown form, layer, kind, field, signal, intent or place, or an instrument expression core refuses, is an error shown in its editor, and the studio falls back to the default for that part.
 
 ## 8. The board
 
-One three.js scene, shared by the three modes.
+One three.js scene, shared by the three modes. It lays out the ruleset's instruments; each is drawn by its form.
 
 **Space.** Cell `(x, y)` occupies the square from `(x, y)` to `(x + 1, y + 1)` on the ground plane, with `y` running down the screen, so the board reads as a map document's picture does. On a plane without a grid, the same coordinates are game units.
 
@@ -253,16 +327,14 @@ One three.js scene, shared by the three modes.
 
 **Drawn, bottom to top:**
 
-1. The plane, sized to the map, and the grid lines when there is a grid.
-2. Cell layers, one instanced mesh per visible layer, from `mapAt(state)`.
-3. Places: an outline and a label; a point place is a marker.
-4. Heatmap, when one is on.
-5. Tokens: a round chip with its icon and a ring in its color. Several tokens in one cell fan out inside it. A dimmed token is flat and gray.
-6. The debug overlay and the selection.
+1. The map: the plane, the grid lines when there is a grid, the cell layers (one instanced mesh per visible layer, from `mapAt(state)`), and the places as outlines with labels.
+2. Heatmap, when one is on.
+3. Tokens, chips and cards, each where its `at` puts it. A dimmed instrument is flat and gray.
+4. The debug overlay and the selection.
 
-**Motion.** While playing, a token whose `at` changes slides to its new cell, and a ground cell that changes flashes. Scrubbing and stepping draw the state with no animation.
+**Motion.** While playing, a token whose `at` changes slides to its new cell, a stack grows or shrinks, a card is dealt in, and a ground cell that changes flashes. Scrubbing and stepping draw the state with no animation.
 
-**Picking.** Click selects a token or a cell and opens it in the inspector; hover names it. The inspector shows a cell's layer values at the cursor, and whether each differs from the map document.
+**Picking.** Click selects an instrument or a cell and opens it in the inspector; hover names it. An instrument opens the entity it is `of`. The inspector shows a cell's layer values at the cursor, and whether each differs from the map document.
 
 **Layer panel.** One row per declared layer: show or hide, its legend, and a mark when it is `mutable`.
 
@@ -429,11 +501,12 @@ The repo, the build, core pinned, the worker protocol, the geometry host, and a 
 Bundled examples only, read-only: the board, the cursor, the log tree, the inspector, the debug overlay, presentation files with defaults, themes.
 
 - [ ] Every one of core's six scenarios opens and plays with no presentation file.
-- [ ] 5e, hold 'em and checkers ship with presentation files.
+- [ ] 5e, hold 'em and checkers ship with presentation files, and between them use all four forms.
+- [ ] The same ruleset opened with two presentation files looks different and plays the same logs.
 - [ ] Pack ambush: rock and Difficult Terrain are drawn, and the overlay shows a diagonal that a closed corner removes from `neighbors`.
 - [ ] Mage duel, a seed where Grease is cast: the ground changes at the `ground` entries and changes back when scrubbed before them.
 - [ ] Mage duel: a Counterspell at a Shield at an attack is nested three decisions deep in the log tree.
-- [ ] Hold 'em: the table is drawn as a plane with its places, players stand at their chairs, and the overlay is unavailable.
+- [ ] Hold 'em: the table is drawn as a plane with its places, each chair has a stack and two hole cards, the board and the pot fill as the hand is played, and the overlay is unavailable.
 - [ ] Junkyard (about 2,600 entries): scrubbing the whole timeline holds 60 frames a second.
 - [ ] At any decision, the inspector lists the same options, in the same order, as the log's `of` counts.
 
@@ -490,3 +563,5 @@ The map editor, entity placement, the YAML editors, ruleset and scenario variant
 | S14 | No seat-filtered view. | Core does not filter the log, so a seat's view of a match would be half true. |
 | S15 | Metrics are CEL through `compileExpression`, with fixed folds. | The language of the rules, and no loops to write. |
 | S16 | Seeds across variants are not paired. | Matches diverge at the first different decision, so pairing would claim more than it shows. |
+| S17 | An instrument of play has its rules in core and its appearance in the studio, joined by a binding to a form. | The split Ludii makes between ludemes and equipment. Core stays free of presentation, and one ruleset can be shown many ways. |
+| S18 | An instrument's bindings are CEL; its labels and the log's sentences are templates. | A binding reads the state and must be type-checked against the ruleset. A sentence only arranges what an entry already holds. |
