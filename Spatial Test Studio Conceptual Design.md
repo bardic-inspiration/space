@@ -1,6 +1,6 @@
 # Spatial Test Studio: Conceptual Design
 
-Nov 12, 2026 · @Reif · revised for core #5 (maps)
+Nov 13, 2026 · @Reif · revised for core #5 (maps)
 
 ## Purpose and intent
 
@@ -63,20 +63,22 @@ An instrument of play is a thing the game is played with. Each has two halves th
 
 The studio is a set of forms, and a ruleset picks from them. v1 has four, and they are the first test fixtures for the idea, chosen because the shipped rulesets need them:
 
-| Form | Stands for | Shown as | First used by |
-| --- | --- | --- | --- |
-| Map | A ruleset's `space` and a map document | A plane, its grid, its cell layers and its places | Every ruleset with a space |
-| Token | An entity with a place to stand | A round chip with an icon, colored by seat or side | 5e creatures, checkers pieces, junkyard bots |
-| Chips | A count | A stack whose height follows the number | Hold 'em stacks and the pot |
-| Cards | A list of cards | A row of faces | Hold 'em hole cards and the board |
+| Form | Role | Stands for | Shown as | First used by |
+| --- | --- | --- | --- | --- |
+| Map | Container | A ruleset's `space` and a map document | A plane, its grid, its cell layers and its places | Every ruleset with a space |
+| Token | Component | An entity with a place to stand | A round chip with an icon, colored by seat or side | 5e creatures, checkers pieces, junkyard bots |
+| Chips | Component | A count | A stack whose height follows the number | Hold 'em stacks and the pot |
+| Cards | Component | A list of cards | A row of faces | Hold 'em hole cards and the board |
 
-The map is an instrument like the others, not the stage they stand on: its rules are core's `space`, and its look is the presentation file's.
+Instruments come in two roles, as Ludii's equipment does. A **container** holds other instruments and says where they can be; a **component** is held. The map is a container, so it is both things at once: an instrument, with rules in core's `space` and a look in the presentation file, and the stage the tokens, chips and cards stand on. It is the only container in v1.
+
+Where the seam runs is not settled everywhere. Whether a number is a stack, whether a card lies face up, and whether a hand holds its cards could each be a rule or a look; v1 makes each a look, and the spec lists them as open questions.
 
 A form is the studio's only knowledge of a kind of object. A new form (dice, a hex tile, a meeple with facing) is new studio code and no change to core; a new look for an existing form is a line in a presentation file. The log uses the same looks, so a token and its chip in a sentence match.
 
 ## The board
 
-The board is a plain 3D environment built from data: the instruments of the open ruleset, laid out. The studio draws it, and core's rules decide what it means.
+The board is a plain 3D environment built from data: the open ruleset's map, with its other instruments laid out on it. The studio draws it, and core's rules decide what it means.
 
 - **Plane and grid:** a map is a bounded plane, and a grid is a rule a ruleset may lay over it. The board draws the plane first and the grid on top when there is one. The square grid is the only one core has. Hexes, height, larger footprints and path distance are added as core adds them, and each one shows in the overlay.
 - **A plane without a grid:** a ruleset with `grid: none` has a size and named places and no cells. The board draws the plane and its places, as a poker table, and instruments lie at places. Core asks no spatial question of it, so there is no host and no debug overlay.

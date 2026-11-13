@@ -1,10 +1,10 @@
 # Spatial Test Studio: v1 Spec
 
-Nov 12, 2026 · @Reif
+Nov 13, 2026 · @Reif
 
 This is the build spec for the first version of the studio. The design it builds is in [Spatial Test Studio: Conceptual Design](Spatial%20Test%20Studio%20Conceptual%20Design.md); where the two differ, this document is wrong and should be fixed. Core is as of commit `63ab4e2` (core #5), and its contract for a host is `docs/host.md` there.
 
-Decisions this spec makes that the design left open are numbered S1 to S18 and listed in [Decisions](#decisions), so each can be overturned by number.
+Decisions this spec makes that the design left open are numbered S1 to S20 and listed in [Decisions](#decisions), so each can be overturned by number. What is knowingly left unsettled is in [Open questions](#open-questions).
 
 ## 1. Scope
 
@@ -13,7 +13,7 @@ Decisions this spec makes that the design left open are numbered S1 to S18 and l
 In v1:
 
 - Any ruleset core compiles can be opened, played, scrubbed and batched, with or without a presentation file.
-- Four forms of instrument of play: map, token, chips, cards (section 7).
+- Four forms of instrument of play: the map, which the others stand on, and tokens, chips and cards (section 7).
 - Square grids, and planes without a grid.
 - Variants of behaviors, maps, scenarios and rulesets. Batches, CEL metrics, comparison, heatmaps.
 - A map editor, entity placement, YAML editors, forks.
@@ -84,7 +84,7 @@ kit/patterns.yaml
 rulesets/<ruleset>/ruleset.yaml
 rulesets/<ruleset>/{extensions,behaviors,maps,scenarios}/<id>.yaml
 studio/project.yaml
-studio/presentation/<ruleset>.yaml
+studio/presentation/<ruleset>/<id>.yaml
 studio/metrics/<ruleset>.yaml
 studio/variants/<ruleset>/<variant>/variant.yaml
 studio/variants/<ruleset>/<variant>/files/...        shadows of rulesets/<ruleset>/...
@@ -95,6 +95,7 @@ studio/forks/<ruleset>/<variant>/<fork>.yaml
 
 - **Base files** are everything outside `studio/`. The studio never writes them (S6).
 - **`studio/project.yaml`** holds `format: 1`, a title, and the core commit the project was last used with. A project opened with a different core says so, and marks its batches stale.
+- **Appearance is not part of a run (S20).** A ruleset may have several presentation files; `default.yaml` is used unless another is picked in the view. None of them reaches a `RunInput`, so changing how a ruleset looks cannot change a match, a hash or a batch.
 - Every studio document carries `format: 1` and is schema-checked. An unknown key is refused, as in core.
 
 ### 4.1 Variants
@@ -185,7 +186,7 @@ Every request carries an id and can be cancelled; a newer `play` supersedes an o
 - **Jobs:** one seed each, taken from a shared queue. A worker compiles an input once per variant hash and keeps the last four.
 - **A job** plays the match with `playMatch`, evaluates the metrics (section 10.2), and answers one record.
 - **Progress** is the count of records in. A batch can be cancelled, and resumed: seeds already in `records.jsonl` are not played again.
-- **A match that throws** yields a record with `error` in place of an outcome. The batch goes on.
+- **A match that throws** yields a record with `error` and no outcome (section 10.1). The batch goes on.
 
 ### 6.3 The cursor
 
@@ -193,11 +194,18 @@ The page holds the log and a cursor: the number of entries applied, from 0 to `l
 
 ## 7. Presentation and instruments
 
-`studio/presentation/<ruleset>.yaml` says how a ruleset looks and reads. Every part is optional, and a ruleset with no file at all is fully usable: the studio fills each gap with the default given below (S10).
+A presentation file, `studio/presentation/<ruleset>/<id>.yaml`, says how a ruleset looks and reads. Every part is optional, and a ruleset with no file at all is fully usable: the studio fills each gap with the default given below (S10).
 
 ### 7.1 Instruments of play
 
 An instrument of play is a thing the game is played with: a map, a token, a stack of chips, a hand of cards. Its rules are core's and its appearance is the studio's (S17). The presentation file joins the two: each entry under `instruments` binds something the ruleset declares to a **form** the studio draws, and gives it a look.
+
+Instruments come in two roles, as Ludii's equipment does (S19):
+
+- **A container** holds other instruments and says where they can be. The map is one: it is an instrument, with rules in core's `space` and a look of its own, and it is also the stage the others stand on. It is the only container in v1.
+- **A component** is held. Tokens, chips and cards are components, and each lies somewhere on the map: in a cell, or at a place.
+
+So a ruleset with no space has components and nowhere to put them, and the studio lists them in a tray.
 
 ```yaml
 format: 1
@@ -256,21 +264,21 @@ colors:
   side: { monsters: "#b5483a", adventurers: "#3a6fb5" }
 ```
 
-Common to every instrument but the map:
+Common to every component:
 
-- **`of`** names a kind: there is one instrument per live entity of it, and its expressions see that entity as `self`. Without `of` there is one instrument for the match, and its expressions see the global scope only.
-- **What it shows** (`count`, `cards`, a token's `at`) and **`dim`** are CEL, checked with `compileExpression` against the ruleset like any rule and evaluated on the state at the cursor. They read facts; an instrument has no rules of its own.
-- **`at`** says where it lies: a `cell` expression, or `{ place, offset }` with a place name built from the entity's stored fields. An instrument with no `at`, or whose place the map lacks, is listed in a tray beside the board.
+- **`of`** names a kind: there is one component per live entity of it, and its expressions see that entity as `self`. Without `of` there is one for the match, and its expressions see the global scope only.
+- **What it shows** (`count`, `cards`, a token's `at`) and **`dim`** are CEL, checked with `compileExpression` against the ruleset like any rule and evaluated on the state at the cursor. They read facts; the presentation file gives an instrument no rules.
+- **`at`** says where on the map it lies: a `cell` expression, or `{ place, offset }`, where the place's name is a template over the entity's stored fields and the offset is in the map's units. A component with no `at`, or whose place the map lacks, is listed in a tray beside the board.
 - **`color`** is a fixed color, or `{ by: field }` with the field's values colored under `colors`.
 
 The four forms of v1:
 
-| Form | Binds | Draws | Look |
-| --- | --- | --- | --- |
-| `map` | The ruleset's `space` and the map at the cursor. One per ruleset, with no `of` or `at`. | The plane, the grid when there is one, the cell layers, the places. | Per layer: a color, pattern and height per value of an enum, bool or string, or a `ramp` and `domain` for a number. Per place: a label and a color. |
-| `token` | An entity with a cell (`at`). | A round chip with an icon and a ring in its color. Several in one cell fan out inside it. | `label`, `icon`, `color`. |
-| `chips` | An `int` (`count`). | A stack whose height follows the count, with the number beside it. Zero draws an empty outline. | `color`, and `unit`, the chips one disc stands for. |
-| `cards` | A `list<int>` or `list<string>` (`cards`). | A row of card faces, in list order. | `face`: a `rank` and a `suit` expression over `card`, or `text`, an expression giving the words on the face. `back: true` draws them face down. |
+| Form | Role | Binds | Draws | Look |
+| --- | --- | --- | --- | --- |
+| `map` | Container | The ruleset's `space` and the map at the cursor. One per ruleset, with no `of` or `at`. | The plane, the grid when there is one, the cell layers, the places. | Per layer: a color, pattern and height per value of an enum, bool or string, or a `ramp` and `domain` for a number. Per place: a label and a color. |
+| `token` | Component | An entity with a cell (`at`). | A round chip with an icon and a ring in its color. Several in one cell fan out inside it. | `label`, `icon`, `color`. |
+| `chips` | Component | An `int` (`count`). | A stack whose height follows the count, with the number beside it. Zero draws an empty outline. | `color`, and `unit`, the chips one disc stands for. |
+| `cards` | Component | A `list<int>` or `list<string>` (`cards`). | A row of card faces, in list order. | `face`: a `rank` and a `suit` expression over `card`, or `text`, an expression giving the words on the face. `back: true` draws them face down. |
 
 Defaults, when a ruleset has no presentation file or lists no instruments:
 
@@ -278,7 +286,7 @@ Defaults, when a ruleset has no presentation file or lists no instruments:
 - A `token` for every kind with exactly one `cell` field, labelled with its `name` field or its id, colored by its `seat` field when it has one.
 - No chips and no cards: nothing in a ruleset says that a number is a stack or a list is a hand. Kinds with no instrument appear only in the inspector.
 
-**A form is a module** in `src/forms/` with one interface: check a binding against the registry, draw on the board from a state, draw inline in a log row, and answer a pick. The board and the log know forms only through it, so a fifth form is one new module and no change elsewhere. The four forms are the fixtures that prove the interface.
+**A form is a module** in `src/forms/` with one interface: check a binding against the registry, draw on the board from a state, draw inline in a log row, and answer a pick. A container's form also answers where a cell or a place is, which is all a component's form needs to know of it. The board and the log know forms only through it, so a fifth form is one new module and no change elsewhere. The four forms are the fixtures that prove the interface.
 
 **Hidden values are shown.** A field hidden from some seats, such as hole cards, is drawn as the referee sees it, with a mark that it is hidden (S14).
 
@@ -319,7 +327,7 @@ The presentation file is checked against the compiled ruleset: an unknown form, 
 
 ## 8. The board
 
-One three.js scene, shared by the three modes. It lays out the ruleset's instruments; each is drawn by its form.
+One three.js scene, shared by the three modes. It draws the map and lays the ruleset's other instruments out on it; each is drawn by its form.
 
 **Space.** Cell `(x, y)` occupies the square from `(x, y)` to `(x + 1, y + 1)` on the ground plane, with `y` running down the screen, so the board reads as a map document's picture does. On a plane without a grid, the same coordinates are game units.
 
@@ -329,7 +337,7 @@ One three.js scene, shared by the three modes. It lays out the ruleset's instrum
 
 1. The map: the plane, the grid lines when there is a grid, the cell layers (one instanced mesh per visible layer, from `mapAt(state)`), and the places as outlines with labels.
 2. Heatmap, when one is on.
-3. Tokens, chips and cards, each where its `at` puts it. A dimmed instrument is flat and gray.
+3. The components (tokens, chips and cards), each where its `at` puts it on the map. A dimmed one is flat and gray.
 4. The debug overlay and the selection.
 
 **Motion.** While playing, a token whose `at` changes slides to its new cell, a stack grows or shrinks, a card is dealt in, and a ground cell that changes flashes. Scrubbing and stepping draw the state with no animation.
@@ -413,6 +421,7 @@ type BatchRecord = MatchRecord & {
   cells: Record<string, Record<string, number>>;   // per cell metric: "x,y" → count
   errors?: Record<string, string>;              // a metric that could not be evaluated
 };
+// A match that threw has `ruleset`, `version`, `scenario`, `seed`, `variant`, and `error`, core's message.
 ```
 
 A record holds no clock and no machine, as core's does, so a batch re-run on the same core gives the same file (S12).
@@ -430,11 +439,11 @@ metrics:
   bloodied: { value: "all.creature.filter(c, c.hp * 2 <= c.hpMax).size()" }
   bigHits: { at: { signal: hp.lose }, value: "amount >= target.hpMax / 2", fold: count }
   damage: { at: { signal: hp.lose }, value: "amount", fold: sum }
-  deaths: { at: { signal: hp.lose }, when: "target.hp <= 0", value: "target.pos", fold: cells }
+  deaths: { at: { signal: hp.lose }, when: "amount >= target.hp", value: "target.pos", fold: cells }
 ```
 
 - **`value`** is CEL, compiled with `compileExpression` against the variant's registry and refused with the same errors a rule gets.
-- **`at`** says when: absent, once on the final state; `{ signal: name }`, at every emission of that signal, on the state at that entry, with the signal's arguments as variables; `{ entry: type }`, after every log entry of that type (`set`, `ground`, `intent`, ...), with no variables.
+- **`at`** says when: absent, once on the final state; `{ signal: name }`, at every emission of that signal, on the state at that entry, before any reaction to it has run, with the signal's arguments as variables; `{ entry: type }`, after every log entry of that type (`set`, `ground`, `intent`, ...), with no variables.
 - **`when`** is an optional bool in the same scope; the sample is skipped when it is false.
 - **`fold`** turns a match's samples into one value: `sum`, `count` (of true samples, or of all when not bool), `mean`, `min`, `max`, `last`, or `cells`. A metric with no `at` needs none.
 - **A cell metric** has a `cell` value and `fold: cells`. It yields a count per cell and feeds a heatmap.
@@ -480,7 +489,7 @@ Everything Build changes is written to the variant in hand. Editing while on the
 - Links: select an entity to see its relations, and add or remove a link to another.
 - Core's refusals (a failed check, a cell off the map or blocked) show on the token and in the form.
 
-**YAML editors.** Any document of the ruleset or the variant, and the presentation and metrics files. Saving a base document writes a shadow. A change is compiled 300 ms after typing stops, with errors inline (section 4.3). The board and the open match follow the last good compile.
+**YAML editors.** Any document of the ruleset or the variant, and the presentation and metrics files. A presentation file is a studio file and is edited in place, not shadowed. Saving a base document writes a shadow. A change is compiled 300 ms after typing stops, with errors inline (section 4.3). The board and the open match follow the last good compile.
 
 **Painting the ground in play** is not Build: it is a referee change in a fork (section 9.1), and only on a mutable layer.
 
@@ -502,13 +511,13 @@ Bundled examples only, read-only: the board, the cursor, the log tree, the inspe
 
 - [ ] Every one of core's six scenarios opens and plays with no presentation file.
 - [ ] 5e, hold 'em and checkers ship with presentation files, and between them use all four forms.
-- [ ] The same ruleset opened with two presentation files looks different and plays the same logs.
+- [ ] Hold 'em under a second presentation file looks different, and its logs, hashes and batches are untouched.
 - [ ] Pack ambush: rock and Difficult Terrain are drawn, and the overlay shows a diagonal that a closed corner removes from `neighbors`.
 - [ ] Mage duel, a seed where Grease is cast: the ground changes at the `ground` entries and changes back when scrubbed before them.
 - [ ] Mage duel: a Counterspell at a Shield at an attack is nested three decisions deep in the log tree.
 - [ ] Hold 'em: the table is drawn as a plane with its places, each chair has a stack and two hole cards, the board and the pot fill as the hand is played, and the overlay is unavailable.
 - [ ] Junkyard (about 2,600 entries): scrubbing the whole timeline holds 60 frames a second.
-- [ ] At any decision, the inspector lists the same options, in the same order, as the log's `of` counts.
+- [ ] At every decision of a match, the inspector lists as many options as the entry's `of`, with the one the log chose among them.
 
 ### M2: Analyze
 
@@ -543,6 +552,14 @@ The map editor, entity placement, the YAML editors, ruleset and scenario variant
 - **Log volume.** A 5e hit is about ten entries. The tree and the keyframes are sized for 5,000 entries; matches near the 20,000-decision limit are not measured.
 - **File System Access.** Chromium only, and permission is asked again each session.
 
+## Open questions
+
+Left open on purpose, to settle after the four forms have been built and used. Each is a question about where the seam between an instrument's rules and its appearance runs.
+
+- **What makes a number a stack?** In v1 a binding in the presentation file does: nothing in a ruleset says that `player.chips` is chips, so a ruleset with no presentation file shows none. The other answer is that core declares what a thing is (a count of chips, a hand of cards) and the studio only chooses its look.
+- **Is face up or face down a rule or a look?** Core already says who may see a field (`visible`). v1 draws every card as the referee sees it and marks the hidden ones, and `back` is a fixed look. Whether a card lies face up could instead follow from `visible` and a viewer, which waits on a seat's view (S14).
+- **What holds what?** In v1 only the map is a container, and a component's place on it is written in the presentation file. A hand holds cards and a pot holds chips, and that containment may belong in the rules, with the studio showing where a container lies and the rules saying what is in it.
+
 ## Decisions
 
 | | Decision | Why |
@@ -564,4 +581,6 @@ The map editor, entity placement, the YAML editors, ruleset and scenario variant
 | S15 | Metrics are CEL through `compileExpression`, with fixed folds. | The language of the rules, and no loops to write. |
 | S16 | Seeds across variants are not paired. | Matches diverge at the first different decision, so pairing would claim more than it shows. |
 | S17 | An instrument of play has its rules in core and its appearance in the studio, joined by a binding to a form. | The split Ludii makes between ludemes and equipment. Core stays free of presentation, and one ruleset can be shown many ways. |
-| S18 | An instrument's bindings are CEL; its labels and the log's sentences are templates. | A binding reads the state and must be type-checked against the ruleset. A sentence only arranges what an entry already holds. |
+| S18 | An instrument's bindings are CEL; its labels, a place's name, and the log's sentences are templates. | A binding reads the state and must be type-checked against the ruleset. A template only arranges what an entry or an entity already holds. |
+| S19 | The map is both an instrument and the stage: a container, where tokens, chips and cards are components. | Ludii's two roles for equipment. The map gets a look like any instrument, and the others are placed by reference to it. |
+| S20 | Presentation files are picked in the view and never enter a run. | How a ruleset looks must not be able to change a match, or a batch would depend on its colors. |
