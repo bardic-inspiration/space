@@ -19,7 +19,7 @@ it can't talk its way past.
 
 ## Organization
 
-Vitest, with two projects in [`vitest.workspace.ts`](../vitest.workspace.ts):
+Vitest, with two projects declared in [`vite.config.ts`](../vite.config.ts):
 
 - **`unit`** — `tests/*.test.ts`, run in Node.
 - **`browser`** — `tests/browser/*.test.ts`, which drive the built site in
