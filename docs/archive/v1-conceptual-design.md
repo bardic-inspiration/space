@@ -10,7 +10,7 @@ The studio is a browser workbench for designing and testing core rulesets. You w
 - **Core loop:** pick a variant, run one match or a batch, read the board and the log, compare, then change the variant.
 - **Stack:** TypeScript and three.js, with core's compiler and runtime used unchanged. Core is at format 2. Its groundwork for the studio (core #4) and its maps (core #5) are merged; `docs/host.md` in core is the reference for everything the studio calls.
 
-The build is specified in [Spatial Test Studio v1 Spec](Spatial%20Test%20Studio%20v1%20Spec.md).
+The build is specified in [Spatial Test Studio v1 Spec](v1-spec.md).
 
 ## The divide
 

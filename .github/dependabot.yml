@@ -1,0 +1,32 @@
+# Dependabot — keeps the GitHub Actions and npm dependencies up to date.
+#
+# PR titles come out as "ci: bump …" and "build: bump …", which pass the PR
+# title check (docs/ci.md). Grouping keeps it to about one PR a week per
+# ecosystem; npm major versions come as their own PRs.
+
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: ci
+    groups:
+      actions:
+        patterns: ["*"]
+
+  # npm. Core (rpg-core) is pinned to a commit and bumped by hand: a new core
+  # re-runs parity and can mark batches stale, so it is never automatic.
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: build
+    ignore:
+      - dependency-name: rpg-core
+    groups:
+      npm:
+        patterns: ["*"]
+        update-types: [minor, patch]
