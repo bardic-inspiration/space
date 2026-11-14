@@ -2,7 +2,7 @@
 
 Nov 13, 2026 · @Reif
 
-This is the build spec for the first version of the studio. The design it builds is in [Spatial Test Studio: Conceptual Design](Spatial%20Test%20Studio%20Conceptual%20Design.md); where the two differ, this document is wrong and should be fixed. Core is as of commit `63ab4e2` (core #5), and its contract for a host is `docs/host.md` there.
+This is the build spec for the first version of the studio. The design it builds is in [Spatial Test Studio: Conceptual Design](v1-conceptual-design.md); where the two differ, this document is wrong and should be fixed. Core is as of commit `63ab4e2` (core #5), and its contract for a host is `docs/host.md` there.
 
 Decisions this spec makes that the design left open are numbered S1 to S20 and listed in [Decisions](#decisions), so each can be overturned by number. What is knowingly left unsettled is in [Open questions](#open-questions).
 

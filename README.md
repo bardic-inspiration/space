@@ -4,8 +4,24 @@ A browser workbench for designing and testing [core](https://github.com/bardic-i
 rulesets. You watch a match, rewind or fork it, change the config, and run
 batches to see what a change does.
 
-- [Conceptual Design](Spatial%20Test%20Studio%20Conceptual%20Design.md): what the studio is for.
-- [v1 Spec](Spatial%20Test%20Studio%20v1%20Spec.md): what this build implements. Section numbers below are the spec's.
+[`SPEC.md`](SPEC.md) is the source of truth for what to build. The v1 design
+and spec it replaces are in [`docs/archive/`](docs/archive/README.md);
+section numbers (S1–S20) below are the archived spec's.
+
+## How this repo is built
+
+This project is built largely by AI coding sessions in small, verifiable
+steps:
+
+- **The task is the prompt, the PR is the response, review is the evaluation,
+  and the squash commit on `main` is the record.**
+- Work bigger than one PR is sequenced by a plan — a GitHub issue, with its
+  tasks as sub-issues.
+- Every change passes the same gate — `npm run validate`, run locally and in
+  CI — and a human merges it.
+
+Agents and humans starting fresh should read [`AGENTS.md`](AGENTS.md) first;
+[`CONTRIBUTING.md`](CONTRIBUTING.md) covers setup.
 
 ## Run it
 
@@ -34,7 +50,7 @@ npm run validate
 ```
 
 This is the check a pull request must pass, and
-[the workflow](.github/workflows/validate.yml) runs it. It type-checks, runs
+[CI](.github/workflows/ci.yml) runs it. It type-checks, runs
 the unit tests, builds the site, and drives the built site in headless
 Chromium. The browser tests need Chromium once: `npx playwright install chromium`.
 
