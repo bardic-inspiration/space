@@ -35,19 +35,23 @@ through the API writes the same sections itself.
 
 | Label | Meaning |
 |---|---|
-| `task` | A feature or change sized for one PR. In the queue. |
-| `bug` | Behavior that contradicts the spec. In the queue. |
-| `documentation` | A substantive docs-only change. |
+| `dev` | Involves code: a feature or change sized for one PR. Tests first, and `check` green ([`testing.md`](testing.md)). In the queue. |
+| `bug` | Behavior that contradicts the spec. Ships with a regression test. In the queue. |
+| `ui` | Changes the interface or how something looks. The PR needs screenshots ([Screenshots](#screenshots-ui-changes)). In the queue. |
+| `docs` | A docs-only change ([Docs-only changes](#docs-only-changes)): CI skips the gate. |
 | `plan` | A plan: phases and done-criteria for work bigger than one PR, with its tasks as sub-issues ([`spec-driven-development.md`](spec-driven-development.md) "Plans"). Not in the queue itself. |
-| `needs-discussion` | Needs a human decision before anyone builds it — usually a design interview (`ask-me`, `grill-me`), with the decisions recorded as a comment and the acceptance criteria rewritten and confirmed. Out of the queue until the label comes off. |
+| `grill-me` | A work in progress: the plan behind it needs a `grill-me` session before anyone builds it, with the decisions recorded as a comment and the acceptance criteria rewritten and confirmed. Out of the queue until the label comes off. |
+
+An issue can carry more than one — a visual change to the board is `dev` and
+`ui`.
 
 Labels are lowercase, colon-scoped where hierarchical (`area:parser`).
 
 ### The queue
 
 A routine that isn't handed an issue takes the **lowest-numbered open issue
-labeled `task` or `bug`** that has no open PR linked to it, isn't labeled
-`needs-discussion`, and has every "Depends on" issue closed. Filing order is
+labeled `dev`, `bug`, or `ui`** that has no open PR linked to it, isn't
+labeled `grill-me`, and has every "Depends on" issue closed. Filing order is
 priority and dependency order — file prerequisites first.
 
 The rule assumes one picker at a time. Routines that run in parallel each
@@ -185,7 +189,7 @@ narration in doc content ([`documentation.md`](documentation.md)).
 
 ### Screenshots (UI changes)
 
-A PR that changes what users see includes 1–4 screenshots under
+A PR for a `ui` issue — or any PR that changes what users see — includes 1–4 screenshots under
 `## Screenshots` — before/after for fixes, plus a phone-width view if the
 layout differs. Commit them, so a session with no upload path can attach them:
 save to `dev/screenshots/pr-<N>/name.png` (open the PR first to get `<N>`), and

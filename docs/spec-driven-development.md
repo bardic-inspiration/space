@@ -132,7 +132,7 @@ The doc audit ([`documentation.md`](documentation.md) "Doc audit") checks that:
 
 Periodically, a **conformance audit** checks `main` against the whole spec,
 including the seams no single issue owned. Its findings are ordinary `bug` and
-`task` issues.
+`dev` issues.
 
 ## Re-baselining a spec that has absorbed its history
 

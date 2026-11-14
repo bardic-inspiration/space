@@ -2,7 +2,7 @@
 name: Docs change
 about: A documentation change with no code impact.
 title: "[docs] "
-labels: documentation
+labels: docs
 assignees: ""
 ---
 

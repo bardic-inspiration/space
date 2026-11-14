@@ -2,7 +2,7 @@
 name: Feature / task
 about: A new capability or change, sized for one PR.
 title: ""
-labels: task
+labels: dev
 assignees: ""
 ---
 
