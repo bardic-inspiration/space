@@ -2,7 +2,8 @@
 #
 # PR titles come out as "ci: bump …" and "build: bump …", which pass the PR
 # title check (docs/ci.md). Grouping keeps it to about one PR a week per
-# ecosystem; npm major versions come as their own PRs.
+# ecosystem, majors included: they often depend on each other (a plugin's new
+# major can require a new major of its host), so they only pass together.
 
 version: 2
 updates:
@@ -29,4 +30,3 @@ updates:
     groups:
       npm:
         patterns: ["*"]
-        update-types: [minor, patch]
